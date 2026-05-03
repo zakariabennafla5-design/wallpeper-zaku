@@ -1,0 +1,224 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الخلفيات موقع zaku </title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: rgba(15, 23, 42, 0.9);
+            --accent: #38bdf8;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at top left, rgba(56,189,248,0.2), transparent 25%),
+                        linear-gradient(180deg, #0f172a 0%, #020617 100%);
+        }
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 3vw, 3rem);
+        }
+        p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 1rem;
+        }
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 24px;
+            padding: 22px;
+            backdrop-filter: blur(22px);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+        }
+        .upload-area {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+        .upload-area input[type="file"] {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(15, 23, 42, 0.85);
+            color: var(--text);
+            cursor: pointer;
+        }
+        .upload-area label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 18px;
+            border-radius: 16px;
+            background: #0ea5e9;
+            color: #fff;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .upload-area label:hover {
+            transform: translateY(-2px);
+        }
+        .options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            align-items: center;
+        }
+        .options select,
+        .options button {
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.85);
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+        .options button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .drop-zone {
+            border: 2px dashed rgba(148, 163, 184, 0.4);
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+            color: var(--muted);
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .drop-zone.dragover {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.08);
+        }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+            margin-top: 18px;
+        }
+        .card {
+            overflow: hidden;
+            border-radius: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            background: rgba(15, 23, 42, 0.8);
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+        }
+        .card img {
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            object-fit: cover;
+        }
+        .card-body {
+            padding: 16px;
+            display: grid;
+            gap: 10px;
+            flex: 1;
+        }
+        .card-body .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            border: none;
+            border-radius: 14px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+        button:hover {
+            transform: translateY(-1px);
+        }
+        .btn-set {
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            color: #fff;
+            flex: 1;
+        }
+        .btn-download {
+            background: #10b981;
+            color: #fff;
+            flex: 1;
+        }
+        .btn-remove {
+            background: rgba(255,255,255,0.08);
+            color: #cbd5e1;
+            flex: 1;
+        }
+        .status {
+            color: #a5f3fc;
+            min-height: 1.5rem;
+        }
+        @media (max-width: 740px) {
+            .upload-area,
+            .options {
+                grid-template-columns: 1fr;
+                display: grid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>مكتبة خلفيات الكمبيوتر</h1>
+            <p>حمّل صورك ثم اختر من بينها لتعرض كخلفية على الصفحة أو نزّلها على جهازك.</p>
+        </header>
+
+        <section class="panel">
+            <div class="upload-area">
+                <input id="fileInput" type="file" accept="image/*" multiple>
+                <label for="fileInput">اختر صورًا</label>
+            </div>
+            <div class="options">
+                <label>
+                    جودة التحميل:
+                    <select id="qualitySelect">
+                        <option value="1">عالية جداً (100%)</option>
+                        <option value="0.8">جودة ممتازة (80%)</option>
+                        <option value="0.6">متوسطة (60%)</option>
+                        <option value="0.4">خفيفة (40%)</option>
+                    </select>
+                </label>
+                <button id="clearLibrary">مسح المكتبة</button>
+            </div>
+            <div id="dropZone" class="drop-zone">
+                اسحب الخلفيات وأفلتها هنا أو اضغط على الزر لاختيار الصور
+            </div>
+            <div class="status" id="statusMessage"></div>
+        </section>
+
+        <section class="panel" id="galleryPanel">
+            <h2>معرض الخلفيات</h2>
+            <div class="gallery" id="gallery"></div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>

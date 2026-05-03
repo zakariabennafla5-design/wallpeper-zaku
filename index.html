@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الخلفيات موقع zaku </title>
+    <title>موقع zaku خلفيات الكمبيوتر</title>
     <style>
         :root {
             --bg: #0f172a;
@@ -48,6 +48,34 @@
             padding: 22px;
             backdrop-filter: blur(22px);
             box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+        }
+        .auth-section {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .auth-section button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .auth-section button:hover {
+            background: #3367d6;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .user-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
         }
         .upload-area {
             display: grid;
@@ -191,7 +219,16 @@
             <p>حمّل صورك ثم اختر من بينها لتعرض كخلفية على الصفحة أو نزّلها على جهازك.</p>
         </header>
 
-        <section class="panel">
+        <section class="panel auth-section" id="authSection">
+            <button id="signInBtn">تسجيل الدخول بحساب Google</button>
+            <div id="userInfo" class="user-info" style="display: none;">
+                <img id="userPhoto" alt="صورة المستخدم">
+                <span id="userName"></span>
+                <button id="signOutBtn">تسجيل الخروج</button>
+            </div>
+        </section>
+
+        <section class="panel" id="uploadPanel" style="display: none;">
             <div class="upload-area">
                 <input id="fileInput" type="file" accept="image/*" multiple>
                 <label for="fileInput">اختر صورًا</label>
@@ -214,11 +251,312 @@
             <div class="status" id="statusMessage"></div>
         </section>
 
-        <section class="panel" id="galleryPanel">
+        <section class="panel" id="galleryPanel" style="display: none;">
             <h2>معرض الخلفيات</h2>
             <div class="gallery" id="gallery"></div>
         </section>
     </main>
-    <script src="script.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+
+        // استبدل هذه القيم بـ API keys الخاصة بمشروع Firebase الخاص بك
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const storage = getStorage(app);
+        const provider = new GoogleAuthProvider();
+
+        const signInBtn = document.getElementById('signInBtn');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const userInfo = document.getElementById('userInfo');
+        const userPhoto = document.getElementById('userPhoto');
+        const userName = document.getElementById('userName');
+        const uploadPanel = document.getElementById('uploadPanel');
+        const galleryPanel = document.getElementById('galleryPanel');
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const gallery = document.getElementById('gallery');
+        const statusMessage = document.getElementById('statusMessage');
+        const qualitySelect = document.getElementById('qualitySelect');
+        const clearLibraryBtn = document.getElementById('clearLibrary');
+
+        let currentUser = null;
+        let images = [];
+
+        function setStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.style.color = isError ? '#fb7185' : '#a5f3fc';
+        }
+
+        function showUserInfo(user) {
+            userPhoto.src = user.photoURL;
+            userName.textContent = user.displayName;
+            userInfo.style.display = 'flex';
+            signInBtn.style.display = 'none';
+            uploadPanel.style.display = 'block';
+            galleryPanel.style.display = 'block';
+        }
+
+        function hideUserInfo() {
+            userInfo.style.display = 'none';
+            signInBtn.style.display = 'block';
+            uploadPanel.style.display = 'none';
+            galleryPanel.style.display = 'none';
+            images = [];
+            updateGallery();
+        }
+
+        signInBtn.addEventListener('click', async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                currentUser = result.user;
+                showUserInfo(currentUser);
+                loadSavedImages();
+                setStatus('تم تسجيل الدخول بنجاح.');
+            } catch (error) {
+                console.error('خطأ في تسجيل الدخول:', error);
+                setStatus('فشل في تسجيل الدخول. تأكد من إعداد Firebase بشكل صحيح.', true);
+            }
+        });
+
+        signOutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                currentUser = null;
+                hideUserInfo();
+                setStatus('تم تسجيل الخروج.');
+            } catch (error) {
+                console.error('خطأ في تسجيل الخروج:', error);
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                showUserInfo(user);
+                loadSavedImages();
+            } else {
+                currentUser = null;
+                hideUserInfo();
+            }
+        });
+
+        function fileToBlob(file, quality) {
+            return new Promise((resolve, reject) => {
+                if (quality >= 1) {
+                    return resolve(file);
+                }
+
+                const image = new Image();
+                const reader = new FileReader();
+
+                reader.onload = () => {
+                    image.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ratio = Math.min(1920 / image.width, 1080 / image.height, 1);
+                        canvas.width = image.width * ratio;
+                        canvas.height = image.height * ratio;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                        canvas.toBlob(blob => {
+                            if (blob) resolve(blob);
+                            else reject(new Error('فشل ضغط الصورة'));
+                        }, 'image/jpeg', quality);
+                    };
+                    image.onerror = reject;
+                    image.src = reader.result;
+                };
+
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadImageToFirebase(blob, name) {
+            const storageRef = ref(storage, `wallpapers/${currentUser.uid}/${Date.now()}-${name}`);
+            const snapshot = await uploadBytes(storageRef, blob);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return { name, url: downloadURL, ref: snapshot.ref.fullPath };
+        }
+
+        async function addImages(files) {
+            if (!currentUser) {
+                setStatus('يجب تسجيل الدخول أولاً.', true);
+                return;
+            }
+
+            const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+            if (!imageFiles.length) {
+                setStatus('الملفات المضافة ليست صوراً. اختر صوراً فقط.', true);
+                return;
+            }
+
+            const quality = Number(qualitySelect.value);
+            let addedCount = 0;
+
+            for (const file of imageFiles) {
+                try {
+                    const blob = await fileToBlob(file, quality);
+                    const imageData = await uploadImageToFirebase(blob, file.name);
+                    images.push(imageData);
+                    addedCount += 1;
+                } catch (error) {
+                    console.error('خطأ في رفع الصورة:', error);
+                }
+            }
+
+            updateGallery();
+            setStatus(`${addedCount} صورة تمّت إضافتها إلى المكتبة.`);
+        }
+
+        async function loadSavedImages() {
+            if (!currentUser) return;
+
+            try {
+                const listRef = ref(storage, `wallpapers/${currentUser.uid}/`);
+                const res = await listAll(listRef);
+                images = await Promise.all(res.items.map(async (itemRef) => {
+                    const url = await getDownloadURL(itemRef);
+                    return { name: itemRef.name, url, ref: itemRef.fullPath };
+                }));
+                updateGallery();
+            } catch (error) {
+                console.error('خطأ في تحميل الصور:', error);
+                images = [];
+            }
+        }
+
+        function updateGallery() {
+            gallery.innerHTML = '';
+            if (!images.length) {
+                gallery.innerHTML = '<p style="color: var(--muted);">لا توجد خلفيات بعد. أضف صوراً لبدء المعرض.</p>';
+                return;
+            }
+
+            images.forEach((item, index) => {
+                const card = document.createElement('article');
+                card.className = 'card';
+
+                const img = document.createElement('img');
+                img.src = item.url;
+                img.alt = item.name;
+
+                const body = document.createElement('div');
+                body.className = 'card-body';
+
+                const name = document.createElement('div');
+                name.textContent = item.name;
+                name.style.fontWeight = '600';
+                name.style.color = '#e2e8f0';
+
+                const buttons = document.createElement('div');
+                buttons.className = 'buttons';
+
+                const setBtn = document.createElement('button');
+                setBtn.className = 'btn-set';
+                setBtn.textContent = 'اجعلها خلفية';
+                setBtn.addEventListener('click', () => setWallpaper(item.url, item.name));
+
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'btn-download';
+                downloadBtn.textContent = 'تحميل';
+                downloadBtn.addEventListener('click', () => downloadImage(item));
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'btn-remove';
+                removeBtn.textContent = 'حذف';
+                removeBtn.addEventListener('click', async () => {
+                    await removeImage(item.ref, index);
+                });
+
+                buttons.appendChild(setBtn);
+                buttons.appendChild(downloadBtn);
+                buttons.appendChild(removeBtn);
+                body.appendChild(name);
+                body.appendChild(buttons);
+                card.appendChild(img);
+                card.appendChild(body);
+                gallery.appendChild(card);
+            });
+        }
+
+        function setWallpaper(imageUrl, name) {
+            document.body.style.backgroundImage = `url('${imageUrl}')`;
+            document.body.style.backgroundSize = 'cover';
+            document.body.style.backgroundPosition = 'center';
+            document.body.style.backgroundRepeat = 'no-repeat';
+            setStatus(`تم عرض الخلفية: ${name}`);
+        }
+
+        function downloadImage(item) {
+            const link = document.createElement('a');
+            link.href = item.url;
+            link.download = item.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function removeImage(refPath, index) {
+            try {
+                const desertRef = ref(storage, refPath);
+                await deleteObject(desertRef);
+                images.splice(index, 1);
+                updateGallery();
+                setStatus('تم حذف الخلفية.');
+            } catch (error) {
+                console.error('خطأ في حذف الصورة:', error);
+                setStatus('فشل في حذف الصورة.', true);
+            }
+        }
+
+        fileInput.addEventListener('change', event => {
+            addImages(event.target.files);
+            fileInput.value = '';
+        });
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, event => event.preventDefault());
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'));
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'));
+        });
+
+        dropZone.addEventListener('drop', event => {
+            if (event.dataTransfer.files.length) {
+                addImages(event.dataTransfer.files);
+            }
+        });
+
+        clearLibraryBtn.addEventListener('click', async () => {
+            if (!confirm('هل تريد مسح كل الصور من المكتبة؟')) return;
+            try {
+                const listRef = ref(storage, `wallpapers/${currentUser.uid}/`);
+                const res = await listAll(listRef);
+                await Promise.all(res.items.map(itemRef => deleteObject(itemRef)));
+                images = [];
+                updateGallery();
+                setStatus('تم مسح المكتبة بالكامل.');
+            } catch (error) {
+                console.error('خطأ في مسح المكتبة:', error);
+                setStatus('فشل في مسح المكتبة.', true);
+            }
+        });
+    </script>
 </body>
 </html>

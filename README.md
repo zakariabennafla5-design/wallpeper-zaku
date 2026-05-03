@@ -15,19 +15,12 @@
    - في إعدادات المشروع، اذهب إلى "General" > "Your apps" > "Add app" (Web app)
    - انسخ الـ config object
 
-3. **تحديث الكود:**
-   - افتح `index.html`
-   - ابحث عن `firebaseConfig` واستبدل القيم بالقيم من Firebase:
-     ```javascript
-     const firebaseConfig = {
-         apiKey: "YOUR_API_KEY",
-         authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-         projectId: "YOUR_PROJECT_ID",
-         storageBucket: "YOUR_PROJECT_ID.appspot.com",
-         messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-         appId: "YOUR_APP_ID"
-     };
-     ```
+3. **إعداد Authentication:**
+   - في Firebase Console، اذهب إلى Authentication > Sign-in method
+   - فعل "Google" كطريقة تسجيل دخول
+   - فعل "Email/Password" كطريقة تسجيل دخول
+   - في Settings > Authorized domains، أضف domain الموقع (مثل localhost أو domain الخاص بك)
+   - إذا كان مشروع جديد، قد تحتاج إلى إعداد OAuth consent screen في Google Cloud Console
 
 4. **إعداد Storage Rules:**
    - في Firebase Console، اذهب إلى Storage > Rules
@@ -45,8 +38,23 @@
 
 5. **تشغيل الموقع:**
    - افتح `index.html` في المتصفح
-   - اضغط "تسجيل الدخول بحساب Google"
+   - افتح Developer Tools (F12) واذهب إلى Console لرؤية رسائل الـ debugging
+   - اضغط "تسجيل الدخول بحساب Google" - سيتم توجيهك إلى صفحة Google
+   - بعد تسجيل الدخول، ستعود إلى الموقع تلقائياً
    - أضف صورك وستُحفظ في حسابك
+
+## كيفية الاستخدام
+
+1. افتح `index.html` في المتصفح
+2. اضغط على "تسجيل الدخول بحساب Google" للدخول بحساب Google، أو "تسجيل الدخول بالبريد الإلكتروني" لإنشاء حساب جديد أو الدخول بحساب موجود
+3. بعد تسجيل الدخول، يمكنك رفع الصور وضبط جودتها
+4. اختر خلفية من المعرض لعرضها كخلفية للصفحة أو تحميلها
+
+## استكشاف الأخطاء
+- إذا ظهر "Firebase config غير محدث"، تأكد من تحديث `firebaseConfig`
+- إذا لم يتم التوجيه إلى Google، تحقق من Console للأخطاء
+- تأكد من أن المتصفح يسمح بالتوجيهات
+- افتح Console في Developer Tools لرؤية رسائل الخطأ التفصيلية
 
 ## الميزات
 - تسجيل دخول Google
@@ -56,4 +64,5 @@
 
 ## ملاحظات
 - الكود الآن مدمج في `index.html` لتجنب مشاكل التحميل
+- يستخدم `signInWithRedirect` بدلاً من popup لتجنب مشاكل الحظر
 - تأكد من أن المتصفح يدعم ES modules (معظم المتصفحات الحديثة)

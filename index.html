@@ -61,9 +61,34 @@
             border-radius: 8px;
             cursor: pointer;
             font-size: 1rem;
+            margin: 8px;
         }
         .auth-section button:hover {
             background: #3367d6;
+        }
+        .auth-form {
+            display: none;
+            margin-top: 16px;
+        }
+        .auth-form input {
+            padding: 10px;
+            margin: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(15, 23, 42, 0.85);
+            color: var(--text);
+        }
+        .auth-form button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 8px;
+        }
+        .auth-form button:hover {
+            background: #059669;
         }
         .user-info {
             display: flex;
@@ -220,7 +245,15 @@
         </header>
 
         <section class="panel auth-section" id="authSection">
-            <button id="signInBtn">تسجيل الدخول بحساب Google</button>
+            <button id="signInGoogleBtn">تسجيل الدخول بحساب Google</button>
+            <button id="signInEmailBtn">تسجيل الدخول بالبريد الإلكتروني</button>
+            <div id="emailForm" class="auth-form">
+                <input type="email" id="emailInput" placeholder="البريد الإلكتروني" required>
+                <input type="password" id="passwordInput" placeholder="كلمة المرور" required>
+                <button id="loginBtn">دخول</button>
+                <button id="registerBtn">إنشاء حساب</button>
+                <button id="cancelBtn">إلغاء</button>
+            </div>
             <div id="userInfo" class="user-info" style="display: none;">
                 <img id="userPhoto" alt="صورة المستخدم">
                 <span id="userName"></span>
@@ -258,7 +291,7 @@
     </main>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getAuth, signInWithRedirect, signOut, onAuthStateChanged, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
 
         // استبدل هذه القيم بـ API keys الخاصة بمشروع Firebase الخاص بك
@@ -276,7 +309,14 @@
         const storage = getStorage(app);
         const provider = new GoogleAuthProvider();
 
-        const signInBtn = document.getElementById('signInBtn');
+        const signInGoogleBtn = document.getElementById('signInGoogleBtn');
+        const signInEmailBtn = document.getElementById('signInEmailBtn');
+        const emailForm = document.getElementById('emailForm');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
         const signOutBtn = document.getElementById('signOutBtn');
         const userInfo = document.getElementById('userInfo');
         const userPhoto = document.getElementById('userPhoto');
@@ -293,39 +333,111 @@
         let currentUser = null;
         let images = [];
 
+        // تحقق من إعداد Firebase
+        console.log('Firebase config:', firebaseConfig.apiKey === 'YOUR_API_KEY' ? 'غير محدث' : 'محدث');
+        if (firebaseConfig.apiKey === 'YOUR_API_KEY') {
+            console.warn('Firebase config غير محدث. يرجى تحديث firebaseConfig في الكود.');
+            setStatus('تحذير: Firebase config غير محدث. انظر README.md للتعليمات.', true);
+        } else {
+            console.log('Firebase initialized successfully');
+        }
+
         function setStatus(message, isError = false) {
             statusMessage.textContent = message;
             statusMessage.style.color = isError ? '#fb7185' : '#a5f3fc';
         }
 
         function showUserInfo(user) {
-            userPhoto.src = user.photoURL;
-            userName.textContent = user.displayName;
+            if (user.photoURL) {
+                userPhoto.src = user.photoURL;
+                userPhoto.style.display = 'block';
+            } else {
+                userPhoto.style.display = 'none';
+            }
+            userName.textContent = user.displayName || user.email;
             userInfo.style.display = 'flex';
-            signInBtn.style.display = 'none';
+            signInGoogleBtn.style.display = 'none';
+            signInEmailBtn.style.display = 'none';
+            emailForm.style.display = 'none';
             uploadPanel.style.display = 'block';
             galleryPanel.style.display = 'block';
         }
 
         function hideUserInfo() {
             userInfo.style.display = 'none';
-            signInBtn.style.display = 'block';
+            signInGoogleBtn.style.display = 'inline-block';
+            signInEmailBtn.style.display = 'inline-block';
+            emailForm.style.display = 'none';
             uploadPanel.style.display = 'none';
             galleryPanel.style.display = 'none';
             images = [];
             updateGallery();
         }
 
-        signInBtn.addEventListener('click', async () => {
+        signInGoogleBtn.addEventListener('click', async () => {
+            if (firebaseConfig.apiKey === 'YOUR_API_KEY') {
+                setStatus('يجب تحديث Firebase config أولاً. انظر README.md للتعليمات.', true);
+                return;
+            }
             try {
-                const result = await signInWithPopup(auth, provider);
-                currentUser = result.user;
-                showUserInfo(currentUser);
-                loadSavedImages();
-                setStatus('تم تسجيل الدخول بنجاح.');
+                console.log('بدء تسجيل الدخول عبر Google redirect...');
+                await signInWithRedirect(auth, provider);
+                console.log('تم إرسال إلى صفحة Google');
             } catch (error) {
                 console.error('خطأ في تسجيل الدخول:', error);
                 setStatus('فشل في تسجيل الدخول. تأكد من إعداد Firebase بشكل صحيح.', true);
+            }
+        });
+
+        signInEmailBtn.addEventListener('click', () => {
+            emailForm.style.display = 'block';
+            signInGoogleBtn.style.display = 'none';
+            signInEmailBtn.style.display = 'none';
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            emailForm.style.display = 'none';
+            signInGoogleBtn.style.display = 'inline-block';
+            signInEmailBtn.style.display = 'inline-block';
+            emailInput.value = '';
+            passwordInput.value = '';
+        });
+
+        loginBtn.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (!email || !password) {
+                setStatus('يرجى إدخال البريد الإلكتروني وكلمة المرور.', true);
+                return;
+            }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                setStatus('تم تسجيل الدخول بنجاح.');
+                emailForm.style.display = 'none';
+            } catch (error) {
+                console.error('خطأ في تسجيل الدخول:', error);
+                setStatus('فشل في تسجيل الدخول. تحقق من البيانات.', true);
+            }
+        });
+
+        registerBtn.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (!email || !password) {
+                setStatus('يرجى إدخال البريد الإلكتروني وكلمة المرور.', true);
+                return;
+            }
+            if (password.length < 6) {
+                setStatus('كلمة المرور يجب أن تكون 6 أحرف على الأقل.', true);
+                return;
+            }
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                setStatus('تم إنشاء الحساب بنجاح.');
+                emailForm.style.display = 'none';
+            } catch (error) {
+                console.error('خطأ في إنشاء الحساب:', error);
+                setStatus('فشل في إنشاء الحساب. ربما البريد مستخدم مسبقاً.', true);
             }
         });
 
@@ -341,6 +453,7 @@
         });
 
         onAuthStateChanged(auth, (user) => {
+            console.log('حالة المصادقة تغيرت:', user ? user.displayName : 'غير مسجل');
             if (user) {
                 currentUser = user;
                 showUserInfo(user);
@@ -348,6 +461,26 @@
             } else {
                 currentUser = null;
                 hideUserInfo();
+            }
+        });
+
+        // معالجة النتيجة من redirect
+        getRedirectResult(auth).then((result) => {
+            if (result) {
+                console.log('تم تسجيل الدخول عبر redirect:', result.user.displayName);
+                currentUser = result.user;
+                showUserInfo(currentUser);
+                loadSavedImages();
+                setStatus('تم تسجيل الدخول بنجاح.');
+            } else {
+                console.log('لا توجد نتيجة من redirect، المستخدم غير مسجل');
+            }
+        }).catch((error) => {
+            console.error('خطأ في معالجة redirect:', error);
+            if (error.code === 'auth/user-cancelled') {
+                setStatus('تم إلغاء تسجيل الدخول.', true);
+            } else {
+                setStatus('فشل في تسجيل الدخول عبر redirect.', true);
             }
         });
 
@@ -420,16 +553,22 @@
         }
 
         async function loadSavedImages() {
-            if (!currentUser) return;
+            if (!currentUser) {
+                console.log('لا يوجد مستخدم مسجل، لا يمكن تحميل الصور');
+                return;
+            }
 
             try {
+                console.log('تحميل الصور للمستخدم:', currentUser.uid);
                 const listRef = ref(storage, `wallpapers/${currentUser.uid}/`);
                 const res = await listAll(listRef);
+                console.log('عدد الصور الموجودة:', res.items.length);
                 images = await Promise.all(res.items.map(async (itemRef) => {
                     const url = await getDownloadURL(itemRef);
                     return { name: itemRef.name, url, ref: itemRef.fullPath };
                 }));
                 updateGallery();
+                console.log('تم تحميل الصور بنجاح');
             } catch (error) {
                 console.error('خطأ في تحميل الصور:', error);
                 images = [];

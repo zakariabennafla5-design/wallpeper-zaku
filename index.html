@@ -371,12 +371,6 @@
             setStatus(`${addedCount} صورة تمّت إضافتها إلى المكتبة.`);
         }
 
-        function loadSavedImages() {
-            const stored = localStorage.getItem('wallpapers');
-            images = stored ? JSON.parse(stored) : [];
-            updateGallery();
-        }
-
         function updateGallery() {
             gallery.innerHTML = '';
             if (!images.length) {
@@ -416,8 +410,8 @@
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'btn-remove';
                 removeBtn.textContent = 'حذف';
-                removeBtn.addEventListener('click', async () => {
-                    await removeImage(item.ref, index);
+                removeBtn.addEventListener('click', () => {
+                    removeImage(index);
                 });
 
                 buttons.appendChild(setBtn);
@@ -448,7 +442,7 @@
             document.body.removeChild(link);
         }
 
-        async function removeImage(refPath, index) {
+        function removeImage(index) {
             images.splice(index, 1);
             saveImages();
             updateGallery();
